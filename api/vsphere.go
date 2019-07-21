@@ -15,8 +15,6 @@ import (
 
 type VSphereCollector struct {
 	ApiAddress string
-	Include    []string
-	Exclude    []string
 }
 
 func NewVSphereCollector(address string) (*VSphereCollector, error) {
@@ -27,8 +25,9 @@ func NewVSphereCollector(address string) (*VSphereCollector, error) {
 	return c, nil
 }
 
-func (col *VSphereCollector) Collect() ([]string, error) {
+func (col *VSphereCollector) Collect() (*models.VSpherePayload, error) {
 	start := time.Now().UTC()
+	payload := &models.VSpherePayload{}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -50,42 +49,51 @@ func (col *VSphereCollector) Collect() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("DCs %+v\n", datacenters)
+	// fmt.Printf("DCs %+v\n", datacenters)
 
 	for _, dc := range datacenters {
-		getData(ctx, f, pc, dc.Name)
+		vmData, err := getData(ctx, f, pc, dc.Name)
+		if err != nil {
+			return nil, err
+		}
+
+		payload.DataStores = append(payload.DataStores, vmData.DataStores...)
+		payload.Hosts = append(payload.Hosts, vmData.Hosts...)
+		payload.VMs = append(payload.VMs, vmData.VMs...)
 	}
 
 	fmt.Printf("Collection took %v\n", time.Now().UTC().Sub(start))
-	return nil, nil
+	return payload, nil
 }
 
-func getData(ctx context.Context, f *find.Finder, pc *property.Collector, dcName string) ([]string, error) {
+func getData(ctx context.Context, f *find.Finder, pc *property.Collector, dcName string) (*models.VSpherePayload, error) {
+	payload := &models.VSpherePayload{}
+
 	dc, err := f.Datacenter(ctx, dcName)
 	if err != nil {
 		return nil, err
 	}
 
 	f.SetDatacenter(dc)
-	fmt.Printf("DC %+v\n", dc)
+	// fmt.Printf("DC %+v\n", dc)
 
 	datastores, err := getDatastores(ctx, f, pc)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("DS %+v\n", datastores)
+	// fmt.Printf("DS %+v\n", datastores)
 
 	clusters, err := getClusters(ctx, f, pc)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("CL %+v\n", clusters)
+	// fmt.Printf("CL %+v\n", clusters)
 
 	hosts, err := getHosts(ctx, f, pc, clusters)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("HO %+v\n", hosts)
+	// fmt.Printf("HO %+v\n", hosts)
 
 	vms, err := getVMs(ctx, f, pc, hosts, datastores)
 	if err != nil {
@@ -106,9 +114,13 @@ func getData(ctx context.Context, f *find.Finder, pc *property.Collector, dcName
 		}
 	}
 
-	fmt.Printf("VMs %+v\n", vms)
+	// fmt.Printf("VMs %+v\n", vms)
 
-	return nil, nil
+	payload.DataStores = datastores
+	payload.Hosts = hosts
+	payload.VMs = vms
+
+	return payload, nil
 }
 
 func getDatacenters(ctx context.Context, f *find.Finder, pc *property.Collector) ([]models.VSphereDatacenter, error) {
@@ -119,14 +131,14 @@ func getDatacenters(ctx context.Context, f *find.Finder, pc *property.Collector)
 		return result, err
 	}
 
-	fmt.Printf("HO %+v\n", dcs)
+	// fmt.Printf("HO %+v\n", dcs)
 
 	var refs []types.ManagedObjectReference
 	for _, dc := range dcs {
 		refs = append(refs, dc.Reference())
 	}
 
-	fmt.Printf("HO %+v\n", refs)
+	// fmt.Printf("HO %+v\n", refs)
 
 	var dct []mo.Datacenter
 	err = pc.Retrieve(ctx, refs, []string{"name"}, &dct)
@@ -135,10 +147,10 @@ func getDatacenters(ctx context.Context, f *find.Finder, pc *property.Collector)
 		return result, err
 	}
 
-	fmt.Printf("HO %+v\n", dct)
+	// fmt.Printf("HO %+v\n", dct)
 
 	for _, dc := range dct {
-		fmt.Println("d", dc)
+		// fmt.Println("d", dc)
 		res := models.VSphereDatacenter{
 			Name:      dc.Name,
 			Collected: time.Now().UTC(),

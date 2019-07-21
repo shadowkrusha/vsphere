@@ -13,5 +13,11 @@ func main() {
 		fmt.Println("Error", err)
 	}
 
-	c.Collect()
+	data, err := c.Collect()
+	if err != nil {
+		fmt.Println("Error", err)
+		return
+	}
+
+	fmt.Printf("%+v", data)
 }

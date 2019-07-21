@@ -19,6 +19,7 @@ type VSphereHost struct {
 	Collected   time.Time  `json:"collected"`
 	Environment string     `json:"environment"`
 	VMs         int        `json:"vms"`
+	Datacenter  string     `json:"datacenter"`
 }
 
 type VSphereVM struct {
@@ -37,6 +38,7 @@ type VSphereVM struct {
 	IP            string     `json:"ip"`
 	Collected     time.Time  `json:"collected"`
 	Environment   string     `json:"environment"`
+	Datacenter    string     `json:"datacenter"`
 }
 
 type VSphereDatastore struct {
@@ -48,4 +50,11 @@ type VSphereDatastore struct {
 	Collected   time.Time `json:"collected"`
 	Environment string    `json:"environment"`
 	VMs         int       `json:"vms"`
+	Datacenter  string    `json:"datacenter"`
+}
+
+type VSpherePayload struct {
+	Hosts      []VSphereHost      `json:"hosts"`
+	DataStores []VSphereDatastore `json:"data_stores"`
+	VMs        []VSphereVM        `json:"vms"`
 }
