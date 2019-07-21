@@ -77,7 +77,7 @@ func getData(ctx context.Context, f *find.Finder, pc *property.Collector, dcName
 	f.SetDatacenter(dc)
 	// fmt.Printf("DC %+v\n", dc)
 
-	datastores, err := getDatastores(ctx, f, pc)
+	datastores, err := getDatastores(ctx, f, pc, dcName)
 	if err != nil {
 		return nil, err
 	}
@@ -89,13 +89,13 @@ func getData(ctx context.Context, f *find.Finder, pc *property.Collector, dcName
 	}
 	// fmt.Printf("CL %+v\n", clusters)
 
-	hosts, err := getHosts(ctx, f, pc, clusters)
+	hosts, err := getHosts(ctx, f, pc, clusters, dcName)
 	if err != nil {
 		return nil, err
 	}
 	// fmt.Printf("HO %+v\n", hosts)
 
-	vms, err := getVMs(ctx, f, pc, hosts, datastores)
+	vms, err := getVMs(ctx, f, pc, hosts, datastores, dcName)
 	if err != nil {
 		return nil, err
 	}
@@ -161,7 +161,7 @@ func getDatacenters(ctx context.Context, f *find.Finder, pc *property.Collector)
 	return result, nil
 }
 
-func getDatastores(ctx context.Context, f *find.Finder, pc *property.Collector) ([]models.VSphereDatastore, error) {
+func getDatastores(ctx context.Context, f *find.Finder, pc *property.Collector, dcName string) ([]models.VSphereDatastore, error) {
 	result := make([]models.VSphereDatastore, 0)
 	dss, err := f.DatastoreList(ctx, "*")
 	if err != nil {
@@ -181,12 +181,13 @@ func getDatastores(ctx context.Context, f *find.Finder, pc *property.Collector) 
 
 	for _, ds := range dst {
 		res := models.VSphereDatastore{
-			Name:      ds.Summary.Name,
-			Collected: time.Now().UTC(),
-			Capacity:  ds.Summary.Capacity,
-			Free:      ds.Summary.FreeSpace,
-			Type:      ds.Summary.Type,
-			Id:        ds.Summary.Datastore.Value,
+			Name:       ds.Summary.Name,
+			Collected:  time.Now().UTC(),
+			Capacity:   ds.Summary.Capacity,
+			Free:       ds.Summary.FreeSpace,
+			Type:       ds.Summary.Type,
+			Id:         ds.Summary.Datastore.Value,
+			DataCenter: dcName,
 		}
 		result = append(result, res)
 	}
@@ -228,7 +229,7 @@ func getClusters(ctx context.Context, f *find.Finder, pc *property.Collector) (m
 
 func getHosts(ctx context.Context, f *find.Finder,
 	pc *property.Collector,
-	clusters map[string][]string) ([]models.VSphereHost, error) {
+	clusters map[string][]string, dcName string) ([]models.VSphereHost, error) {
 	result := make([]models.VSphereHost, 0)
 
 	hosts, err := f.HostSystemList(ctx, "*")
@@ -257,6 +258,7 @@ func getHosts(ctx context.Context, f *find.Finder,
 			Cluster:    getHostCluster(host.Summary.Host.Value, clusters),
 			Memory:     host.Hardware.MemorySize,
 			NCPU:       int(host.Hardware.CpuInfo.NumCpuPackages * host.Hardware.CpuInfo.NumCpuCores),
+			DataCenter: dcName,
 		}
 
 		result = append(result, res)
@@ -280,7 +282,7 @@ func getHostCluster(hostId string, clusters map[string][]string) string {
 func getVMs(ctx context.Context, f *find.Finder,
 	pc *property.Collector,
 	hosts []models.VSphereHost,
-	datastores []models.VSphereDatastore) ([]models.VSphereVM, error) {
+	datastores []models.VSphereDatastore, dcName string) ([]models.VSphereVM, error) {
 	result := make([]models.VSphereVM, 0)
 
 	vms, err := f.VirtualMachineList(ctx, "*")
@@ -357,6 +359,7 @@ func getVMs(ctx context.Context, f *find.Finder,
 			HostId:        host.Id,
 			DatastoreId:   datastore.Id,
 			DatastoreName: datastore.Name,
+			DataCenter:    dcName,
 			// Environment:   strings.Split(vm.Name, "-")[0],
 		}
 
