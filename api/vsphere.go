@@ -52,10 +52,20 @@ func (col *VSphereCollector) Collect() ([]string, error) {
 	}
 	fmt.Printf("DCs %+v\n", datacenters)
 
-	dc, err := f.DefaultDatacenter(ctx)
+	for _, dc := range datacenters {
+		getData(ctx, f, pc, dc.Name)
+	}
+
+	fmt.Printf("Collection took %v\n", time.Now().UTC().Sub(start))
+	return nil, nil
+}
+
+func getData(ctx context.Context, f *find.Finder, pc *property.Collector, dcName string) ([]string, error) {
+	dc, err := f.Datacenter(ctx, dcName)
 	if err != nil {
 		return nil, err
 	}
+
 	f.SetDatacenter(dc)
 	fmt.Printf("DC %+v\n", dc)
 
@@ -77,7 +87,7 @@ func (col *VSphereCollector) Collect() ([]string, error) {
 	}
 	fmt.Printf("HO %+v\n", hosts)
 
-	vms, err := getVMs(ctx, f, pc, hosts, datastores, col.Include, col.Exclude)
+	vms, err := getVMs(ctx, f, pc, hosts, datastores)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +108,6 @@ func (col *VSphereCollector) Collect() ([]string, error) {
 
 	fmt.Printf("VMs %+v\n", vms)
 
-	fmt.Printf("Collection took %v\n", time.Now().UTC().Sub(start))
 	return nil, nil
 }
 
@@ -120,7 +129,7 @@ func getDatacenters(ctx context.Context, f *find.Finder, pc *property.Collector)
 	fmt.Printf("HO %+v\n", refs)
 
 	var dct []mo.Datacenter
-	err = pc.Retrieve(ctx, refs, []string{}, &dct)
+	err = pc.Retrieve(ctx, refs, []string{"name"}, &dct)
 	if err != nil {
 		fmt.Println("r failed", err)
 		return result, err
@@ -133,10 +142,6 @@ func getDatacenters(ctx context.Context, f *find.Finder, pc *property.Collector)
 		res := models.VSphereDatacenter{
 			Name:      dc.Name,
 			Collected: time.Now().UTC(),
-			// Capacity:  ds.Summary.Capacity,
-			// Free:      ds.Summary.FreeSpace,
-			// Type:      ds.Summary.Type,
-			// Id: dc.Summary.Datacenter.Value,
 		}
 		result = append(result, res)
 	}
@@ -263,8 +268,7 @@ func getHostCluster(hostId string, clusters map[string][]string) string {
 func getVMs(ctx context.Context, f *find.Finder,
 	pc *property.Collector,
 	hosts []models.VSphereHost,
-	datastores []models.VSphereDatastore,
-	include []string, exclude []string) ([]models.VSphereVM, error) {
+	datastores []models.VSphereDatastore) ([]models.VSphereVM, error) {
 	result := make([]models.VSphereVM, 0)
 
 	vms, err := f.VirtualMachineList(ctx, "*")
