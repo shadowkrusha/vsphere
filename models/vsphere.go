@@ -2,6 +2,12 @@ package models
 
 import "time"
 
+type VSphereDatacenter struct {
+	Id        string    `json:"id"`
+	Name      string    `json:"name"`
+	Collected time.Time `json:"collected"`
+}
+
 type VSphereHost struct {
 	Id          string     `json:"id"`
 	Name        string     `json:"name"`

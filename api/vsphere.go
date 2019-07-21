@@ -46,6 +46,12 @@ func (col *VSphereCollector) Collect() ([]string, error) {
 	pc := property.DefaultCollector(c.Client)
 	f := find.NewFinder(c.Client, true)
 
+	datacenters, err := getDatacenters(ctx, f, pc)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Printf("DCs %+v\n", datacenters)
+
 	dc, err := f.DefaultDatacenter(ctx)
 	if err != nil {
 		return nil, err
@@ -94,6 +100,48 @@ func (col *VSphereCollector) Collect() ([]string, error) {
 
 	fmt.Printf("Collection took %v\n", time.Now().UTC().Sub(start))
 	return nil, nil
+}
+
+func getDatacenters(ctx context.Context, f *find.Finder, pc *property.Collector) ([]models.VSphereDatacenter, error) {
+	// Datacenter
+	result := make([]models.VSphereDatacenter, 0)
+	dcs, err := f.DatacenterList(ctx, "*")
+	if err != nil {
+		return result, err
+	}
+
+	fmt.Printf("HO %+v\n", dcs)
+
+	var refs []types.ManagedObjectReference
+	for _, dc := range dcs {
+		refs = append(refs, dc.Reference())
+	}
+
+	fmt.Printf("HO %+v\n", refs)
+
+	var dct []mo.Datacenter
+	err = pc.Retrieve(ctx, refs, []string{}, &dct)
+	if err != nil {
+		fmt.Println("r failed", err)
+		return result, err
+	}
+
+	fmt.Printf("HO %+v\n", dct)
+
+	for _, dc := range dct {
+		fmt.Println("d", dc)
+		res := models.VSphereDatacenter{
+			Name:      dc.Name,
+			Collected: time.Now().UTC(),
+			// Capacity:  ds.Summary.Capacity,
+			// Free:      ds.Summary.FreeSpace,
+			// Type:      ds.Summary.Type,
+			// Id: dc.Summary.Datacenter.Value,
+		}
+		result = append(result, res)
+	}
+
+	return result, nil
 }
 
 func getDatastores(ctx context.Context, f *find.Finder, pc *property.Collector) ([]models.VSphereDatastore, error) {

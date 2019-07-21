@@ -2,13 +2,16 @@ package main
 
 import (
 	// "context"
-	// "fmt"
+	"fmt"
 	"github.com/shadowkrusha/vsphere/api"
 	// "time"
 )
 
 func main() {
-	c, _ := api.NewVSphereCollector("https://user:pass@127.0.0.1:8989/sdk")
+	c, err := api.NewVSphereCollector("https://user:pass@127.0.0.1:8989/sdk")
+	if err != nil {
+		fmt.Println("Error", err)
+	}
 
 	c.Collect()
 }
