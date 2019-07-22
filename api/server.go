@@ -14,6 +14,10 @@ type HttpServer struct {
 	Config *Config
 }
 
+type Results struct {
+	Data interface{} `json:"data"`
+}
+
 func (s *HttpServer) Start() {
 
 	render := unrender.New(unrender.Options{
@@ -44,19 +48,44 @@ func (s *HttpServer) Start() {
 		}
 		render.JSON(w, http.StatusOK, info)
 	})
-	http.HandleFunc("/data", func(w http.ResponseWriter, req *http.Request) {
-		c, err := NewVSphereCollector("https://user:pass@127.0.0.1:8989/sdk")
+	http.HandleFunc("/data/pvc", func(w http.ResponseWriter, req *http.Request) {
+		c, err := NewVSphereCollector("https://svc_datacollector:OinlMqkyfSxfuC67HGa0@pvc.ads.westernpower.com.au/sdk")
 		if err != nil {
 			fmt.Println("Error", err)
 		}
+
+		w.Header().Set("Access-Control-Allow-Origin", "*")
 
 		data, err := c.Collect()
 		if err != nil {
 			fmt.Println("Error", err)
-			render.JSON(w, http.StatusOK, err)
+			render.JSON(w, http.StatusBadRequest, err)
 		}
 
-		render.JSON(w, http.StatusOK, data)
+		results := &Results{}
+		results.Data = data.VMs
+
+		render.JSON(w, http.StatusOK, results)
+	})
+
+	http.HandleFunc("/data/svc", func(w http.ResponseWriter, req *http.Request) {
+		c, err := NewVSphereCollector("https://svc_datacollector:OinlMqkyfSxfuC67HGa0@svc.ads.westernpower.com.au/sdk")
+		if err != nil {
+			fmt.Println("Error", err)
+		}
+
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+
+		data, err := c.Collect()
+		if err != nil {
+			fmt.Println("Error", err)
+			render.JSON(w, http.StatusBadRequest, err)
+		}
+
+		results := &Results{}
+		results.Data = data.VMs
+
+		render.JSON(w, http.StatusOK, results)
 	})
 
 	log.Error(http.ListenAndServe(fmt.Sprintf(":%v", s.Config.Port), http.DefaultServeMux))
