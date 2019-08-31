@@ -3,17 +3,18 @@ package api
 import (
 	"context"
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"net/url"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+
+	"github.com/vmware/govmomi/view"
 	"github.com/vmware/govmomi/vim25"
 
 	"github.com/shadowkrusha/vsphere/models"
 	"github.com/vmware/govmomi"
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/property"
-	"github.com/vmware/govmomi/view"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
 )
@@ -105,6 +106,7 @@ func getData(ctx context.Context, f *find.Finder, pc *property.Collector, dcName
 		return nil, err
 	}
 
+	// log.Println(getNetworks(ctx, f, pc, dcName))
 	log.Println(getNetworks(ctx, c, clusters))
 
 	for _, vm := range vms {
@@ -386,8 +388,8 @@ func getVMs(ctx context.Context, f *find.Finder,
 	return result, nil
 }
 
-func getNetworks(ctx context.Context, c *vim25.Client, clusters map[string][]string) ([]models.VSphereDatastore, error) {
-	result := make([]models.VSphereDatastore, 0)
+func getNetworks(ctx context.Context, c *vim25.Client, clusters map[string][]string) ([]models.VSphereNetwork, error) {
+	result := make([]models.VSphereNetwork, 0)
 
 	m := view.NewManager(c)
 
@@ -405,22 +407,80 @@ func getNetworks(ctx context.Context, c *vim25.Client, clusters map[string][]str
 		return result, err
 	}
 
-	fmt.Println("--------------------------")
 	for _, net := range networks {
-		fmt.Printf("%s: %s\n", net.Name, net.Reference())
-		// fmt.Printf("%v\n", getHostCluster(net.Host[0].Value, clusters))
-		// fmt.Printf("%+v\n", net.Host)
-		// for _, host := range net.Host {
-		// 	fmt.Printf("\t%s\n", getHostCluster(host.Value, clusters))
-		// }
-		fmt.Println(getNetworkCluster(net.Host, clusters))
-		fmt.Println("--------------------------")
-		// log.Printf("%v\n", net)
+		// fmt.Printf("%s: %s\n", net.Name, net.Reference())
+		// fmt.Println(getNetworkCluster(net.Host, clusters))
+		log.Printf("%+v\n", net)
+
+		network := models.VSphereNetwork{
+			Name:    net.Name,
+			Cluster: getNetworkCluster(net.Host, clusters),
+		}
+
+		result = append(result, network)
 	}
-	fmt.Println("--------------------------")
 
 	return result, nil
 }
+
+// func getNetworks(ctx context.Context, f *find.Finder, pc *property.Collector, dcName string) ([]models.VSphereNetwork, error) {
+// 	result := make([]models.VSphereNetwork, 0)
+// 	nws, err := f.NetworkList(ctx, "*")
+// 	if err != nil {
+// 		return result, err
+// 	}
+
+// 	// for _, network := range nws {
+// 	// 	fmt.Printf("%+v\n", network)
+// 	// }
+
+// 	var networkRefs, vSwitchRefs, vPortgroupRefs []types.ManagedObjectReference
+// 	for _, nw := range nws {
+// 		switch nw.Reference().Type {
+// 		case "Network":
+// 			networkRefs = append(networkRefs, nw.Reference())
+// 		case "DistributedVirtualSwitch":
+// 			vSwitchRefs = append(vSwitchRefs, nw.Reference())
+// 		case "DistributedVirtualPortgroup":
+// 			vPortgroupRefs = append(vPortgroupRefs, nw.Reference())
+// 		}
+// 		// refs = append(refs, nw.Reference())
+// 	}
+
+// 	var networks []mo.Network
+// 	err = pc.Retrieve(ctx, networkRefs, []string{"name", "summary"}, &networks)
+// 	if err != nil {
+// 		return result, err
+// 	}
+
+// 	for _, nw := range networks {
+// 		fmt.Printf("NM: %+v\n", nw)
+// 		res := models.VSphereNetwork{
+// 			Name: nw.Name,
+// 		}
+// 		result = append(result, res)
+// 	}
+
+// 	var vSwitches []mo.DistributedVirtualSwitch
+// 	err = pc.Retrieve(ctx, vSwitchRefs, []string{"name", "summary", "config"}, &vSwitches)
+// 	if err != nil {
+// 		return result, err
+// 	}
+
+// 	for _, vs := range vSwitches {
+// 		fmt.Printf("NM: %+v\n", vs)
+// 		res := models.VSphereNetwork{
+// 			Name: vs.Name,
+// 			Cluster: getNetworkCluster(vs.Config.GetDVSConfigInfo().Host, clusters),
+// 		}
+
+// 		result = append(result, res)
+// 	}
+
+// 	fmt.Printf("%+v\n", result)
+
+// 	return result, nil
+// }
 
 func getNetworkCluster(hosts []types.ManagedObjectReference, clusters map[string][]string) string {
 	for _, host := range hosts {

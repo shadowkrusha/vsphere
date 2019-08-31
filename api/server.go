@@ -2,9 +2,9 @@ package api
 
 import (
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	log "github.com/sirupsen/logrus"
 	unrender "github.com/unrolled/render"
 	"net/http"
 	"runtime"

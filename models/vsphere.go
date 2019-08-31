@@ -58,3 +58,8 @@ type VSpherePayload struct {
 	DataStores []VSphereDatastore `json:"data_stores"`
 	VMs        []VSphereVM        `json:"vms"`
 }
+
+type VSphereNetwork struct {
+	Name    string `json:"name"`
+	Cluster string `json:"cluster"`
+}

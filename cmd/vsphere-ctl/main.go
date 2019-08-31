@@ -4,8 +4,8 @@ import (
 	// "context"
 	// "fmt"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/shadowkrusha/vsphere/api"
+	log "github.com/sirupsen/logrus"
 	// "time"
 	// "flag"
 )
