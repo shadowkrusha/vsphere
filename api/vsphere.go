@@ -3,14 +3,19 @@ package api
 import (
 	"context"
 	"fmt"
+	"log"
+	"net/url"
+	"time"
+
+	"github.com/vmware/govmomi/vim25"
+
 	"github.com/shadowkrusha/vsphere/models"
 	"github.com/vmware/govmomi"
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/property"
+	"github.com/vmware/govmomi/view"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
-	"net/url"
-	"time"
 )
 
 type VSphereCollector struct {
@@ -52,7 +57,7 @@ func (col *VSphereCollector) Collect() (*models.VSpherePayload, error) {
 	// fmt.Printf("DCs %+v\n", datacenters)
 
 	for _, dc := range datacenters {
-		vmData, err := getData(ctx, f, pc, dc.Name)
+		vmData, err := getData(ctx, f, pc, dc.Name, c.Client)
 		if err != nil {
 			return nil, err
 		}
@@ -66,7 +71,7 @@ func (col *VSphereCollector) Collect() (*models.VSpherePayload, error) {
 	return payload, nil
 }
 
-func getData(ctx context.Context, f *find.Finder, pc *property.Collector, dcName string) (*models.VSpherePayload, error) {
+func getData(ctx context.Context, f *find.Finder, pc *property.Collector, dcName string, c *vim25.Client) (*models.VSpherePayload, error) {
 	payload := &models.VSpherePayload{}
 
 	dc, err := f.Datacenter(ctx, dcName)
@@ -99,6 +104,8 @@ func getData(ctx context.Context, f *find.Finder, pc *property.Collector, dcName
 	if err != nil {
 		return nil, err
 	}
+
+	log.Println(getNetworks(ctx, c, clusters))
 
 	for _, vm := range vms {
 		for i, host := range hosts {
@@ -377,4 +384,50 @@ func getVMs(ctx context.Context, f *find.Finder,
 	}
 
 	return result, nil
+}
+
+func getNetworks(ctx context.Context, c *vim25.Client, clusters map[string][]string) ([]models.VSphereDatastore, error) {
+	result := make([]models.VSphereDatastore, 0)
+
+	m := view.NewManager(c)
+
+	v, err := m.CreateContainerView(ctx, c.ServiceContent.RootFolder, []string{"Network"}, true)
+	if err != nil {
+		return result, err
+	}
+
+	defer v.Destroy(ctx)
+
+	// Reference: http://pubs.vmware.com/vsphere-60/topic/com.vmware.wssdk.apiref.doc/vim.Network.html
+	var networks []mo.Network
+	err = v.Retrieve(ctx, []string{"Network"}, nil, &networks)
+	if err != nil {
+		return result, err
+	}
+
+	fmt.Println("--------------------------")
+	for _, net := range networks {
+		fmt.Printf("%s: %s\n", net.Name, net.Reference())
+		// fmt.Printf("%v\n", getHostCluster(net.Host[0].Value, clusters))
+		// fmt.Printf("%+v\n", net.Host)
+		// for _, host := range net.Host {
+		// 	fmt.Printf("\t%s\n", getHostCluster(host.Value, clusters))
+		// }
+		fmt.Println(getNetworkCluster(net.Host, clusters))
+		fmt.Println("--------------------------")
+		// log.Printf("%v\n", net)
+	}
+	fmt.Println("--------------------------")
+
+	return result, nil
+}
+
+func getNetworkCluster(hosts []types.ManagedObjectReference, clusters map[string][]string) string {
+	for _, host := range hosts {
+		cluster := getHostCluster(host.Value, clusters); if cluster != "" {
+			return cluster
+		}
+	}
+	
+	return ""
 }
