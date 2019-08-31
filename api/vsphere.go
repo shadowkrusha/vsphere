@@ -252,7 +252,7 @@ func getHosts(ctx context.Context, f *find.Finder,
 	}
 
 	var hostList []mo.HostSystem
-	err = pc.Retrieve(ctx, hRefs, []string{"name", "summary", "hardware", "runtime"}, &hostList)
+	err = pc.Retrieve(ctx, hRefs, []string{"name", "summary", "hardware", "runtime", "network", "datastore"}, &hostList)
 	if err != nil {
 		return result, err
 	}
@@ -270,7 +270,40 @@ func getHosts(ctx context.Context, f *find.Finder,
 			DataCenter: dcName,
 		}
 
+		networks, _ := getN2(ctx,f,pc,res.Id)
+		fmt.Printf("%+v\n", networks)
+
 		result = append(result, res)
+	}
+
+	return result, nil
+}
+
+func getN2(ctx context.Context, f *find.Finder, pc *property.Collector, hostRef string) ([]string, error) {
+	result := make([]string, 0)
+	networks, err := f.NetworkList(ctx, "*")
+	if err != nil {
+		return result, err
+	}
+
+	// for _, network := range networks {
+	// 	fmt.Println(network.Reference().Value)
+	// 	result = append(result,network.Reference().String())
+	// }
+
+	var nRefs []types.ManagedObjectReference
+	for _, n := range networks {
+		nRefs = append(nRefs, n.Reference())
+	}
+
+	var networkList []mo.ManagedEntity
+	err = pc.Retrieve(ctx, nRefs, []string{"name"}, &networkList)
+	if err != nil {
+		return result, err
+	}
+
+	for _, nw := range networkList {
+		result = append(result, nw.Name)
 	}
 
 	return result, nil

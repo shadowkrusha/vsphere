@@ -20,6 +20,7 @@ type VSphereHost struct {
 	Environment string     `json:"environment"`
 	VMs         int        `json:"vms"`
 	DataCenter  string     `json:"datacenter"`
+	Networks    []string   `json:"networks`
 }
 
 type VSphereVM struct {
