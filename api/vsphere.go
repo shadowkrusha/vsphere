@@ -3,7 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"net/url"
 	"time"
 
@@ -424,10 +424,11 @@ func getNetworks(ctx context.Context, c *vim25.Client, clusters map[string][]str
 
 func getNetworkCluster(hosts []types.ManagedObjectReference, clusters map[string][]string) string {
 	for _, host := range hosts {
-		cluster := getHostCluster(host.Value, clusters); if cluster != "" {
+		cluster := getHostCluster(host.Value, clusters)
+		if cluster != "" {
 			return cluster
 		}
 	}
-	
+
 	return ""
 }
